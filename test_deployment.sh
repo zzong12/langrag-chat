@@ -8,7 +8,7 @@
 #   TEST_REMOTE_PORT - Remote service port (e.g., 30006)
 #
 # Example:
-#   export TEST_REMOTE_HOST=47.92.139.154
+#   export TEST_REMOTE_HOST=example.com
 #   export TEST_REMOTE_PORT=30006
 #   ./test_deployment.sh
 
