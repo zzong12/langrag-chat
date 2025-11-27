@@ -2,11 +2,45 @@
 
 # Test script for deployed service
 # Usage: ./test_deployment.sh
+#
+# Required environment variables (can be set in .env or exported):
+#   TEST_REMOTE_HOST - Remote server host or IP (e.g., 47.92.139.154)
+#   TEST_REMOTE_PORT - Remote service port (e.g., 30006)
+#
+# Example:
+#   export TEST_REMOTE_HOST=47.92.139.154
+#   export TEST_REMOTE_PORT=30006
+#   ./test_deployment.sh
 
 set -e
 
-REMOTE_HOST="47.92.139.154"
-REMOTE_PORT="30006"
+# Load environment variables from .env if it exists
+if [ -f .env ]; then
+    export $(grep -v '^#' .env | grep -E '^TEST_' | xargs)
+fi
+
+# Configuration - read from environment variables
+REMOTE_HOST="${TEST_REMOTE_HOST:-}"
+REMOTE_PORT="${TEST_REMOTE_PORT:-}"
+
+# Validate required variables
+if [ -z "$REMOTE_HOST" ] || [ -z "$REMOTE_PORT" ]; then
+    echo "❌ Missing required test configuration!"
+    echo ""
+    echo "Please set the following environment variables (in .env or export them):"
+    echo "  TEST_REMOTE_HOST - Remote server host or IP address"
+    echo "  TEST_REMOTE_PORT - Remote service port"
+    echo ""
+    echo "Example .env entries:"
+    echo "  TEST_REMOTE_HOST=47.92.139.154"
+    echo "  TEST_REMOTE_PORT=30006"
+    echo ""
+    echo "Or export them:"
+    echo "  export TEST_REMOTE_HOST=47.92.139.154"
+    echo "  export TEST_REMOTE_PORT=30006"
+    exit 1
+fi
+
 BASE_URL="http://${REMOTE_HOST}:${REMOTE_PORT}"
 
 echo "=== Testing LangRAG Deployment ==="
