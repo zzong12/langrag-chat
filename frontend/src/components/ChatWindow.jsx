@@ -1,4 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { chatStream } from '../services/api';
 import CitationDetail from './CitationDetail';
 
@@ -117,16 +121,48 @@ const ChatWindow = ({ conversationId, onConversationChange }) => {
   };
 
   const renderContentWithCitations = (content, citations) => {
+    // Markdown renderer components
+    const markdownComponents = {
+      code({ node, inline, className, children, ...props }) {
+        const match = /language-(\w+)/.exec(className || '');
+        return !inline && match ? (
+          <SyntaxHighlighter
+            style={vscDarkPlus}
+            language={match[1]}
+            PreTag="div"
+            customStyle={{ margin: '0.5em 0', borderRadius: '4px' }}
+            {...props}
+          >
+            {String(children).replace(/\n$/, '')}
+          </SyntaxHighlighter>
+        ) : (
+          <code className={className} style={{ backgroundColor: '#f4f4f4', padding: '0.2em 0.4em', borderRadius: '3px', fontSize: '0.9em' }} {...props}>
+            {children}
+          </code>
+        );
+      },
+      p: ({ children }) => <p style={{ margin: '0.5em 0' }}>{children}</p>,
+      h1: ({ children }) => <h1 style={{ fontSize: '1.5em', fontWeight: 'bold', margin: '0.8em 0 0.4em 0' }}>{children}</h1>,
+      h2: ({ children }) => <h2 style={{ fontSize: '1.3em', fontWeight: 'bold', margin: '0.7em 0 0.3em 0' }}>{children}</h2>,
+      h3: ({ children }) => <h3 style={{ fontSize: '1.1em', fontWeight: 'bold', margin: '0.6em 0 0.3em 0' }}>{children}</h3>,
+      ul: ({ children }) => <ul style={{ margin: '0.5em 0', paddingLeft: '1.5em' }}>{children}</ul>,
+      ol: ({ children }) => <ol style={{ margin: '0.5em 0', paddingLeft: '1.5em' }}>{children}</ol>,
+      li: ({ children }) => <li style={{ margin: '0.2em 0' }}>{children}</li>,
+      blockquote: ({ children }) => <blockquote style={{ borderLeft: '3px solid #ddd', paddingLeft: '1em', margin: '0.5em 0', color: '#666' }}>{children}</blockquote>,
+      a: ({ href, children }) => <a href={href} style={{ color: '#3b82f6', textDecoration: 'underline' }} target="_blank" rel="noopener noreferrer">{children}</a>,
+    };
+
     if (!citations || citations.length === 0) {
-      return <div className="whitespace-pre-wrap leading-relaxed">{content}</div>;
+      return (
+        <div className="markdown-content" style={{ lineHeight: '1.6' }}>
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+            {content}
+          </ReactMarkdown>
+        </div>
+      );
     }
 
-    // Insert citations at natural break points (sentence endings)
-    const parts = [];
-    let lastIndex = 0;
-    let citationIndex = 0;
-    
-    // Find sentence boundaries
+    // Find sentence boundaries and insert citations
     const sentencePattern = /([.!?。！？]\s+)/g;
     const sentences = [];
     let match;
@@ -141,7 +177,6 @@ const ChatWindow = ({ conversationId, onConversationChange }) => {
       lastEnd = sentenceEnd;
     }
     
-    // Add remaining text
     if (lastEnd < content.length) {
       sentences.push({
         text: content.substring(lastEnd),
@@ -149,20 +184,28 @@ const ChatWindow = ({ conversationId, onConversationChange }) => {
       });
     }
 
-    // Insert citations after every 2-3 sentences, or at the end
-    const result = [];
+    // Build parts array with markdown and citations
+    const parts = [];
+    let citationIndex = 0;
+    
     sentences.forEach((sentence, idx) => {
-      result.push(
-        <span key={`text-${idx}`}>{sentence.text}</span>
+      parts.push(
+        <ReactMarkdown
+          key={`text-${idx}`}
+          remarkPlugins={[remarkGfm]}
+          components={markdownComponents}
+        >
+          {sentence.text}
+        </ReactMarkdown>
       );
       
-      // Insert citation after every 2 sentences, or at the end if we have remaining citations
+      // Insert citation after every 2 sentences, or at the end
       const shouldInsert = (idx > 0 && (idx + 1) % 2 === 0 && citationIndex < citations.length) ||
                           (idx === sentences.length - 1 && citationIndex < citations.length);
       
       if (shouldInsert) {
         const citation = citations[citationIndex];
-        result.push(
+        parts.push(
           <CitationMarker
             key={`cite-${citationIndex}`}
             citation={citation}
@@ -179,9 +222,9 @@ const ChatWindow = ({ conversationId, onConversationChange }) => {
       }
     });
     
-    // Add any remaining citations at the very end
+    // Add remaining citations at the end
     citations.slice(citationIndex).forEach((citation, idx) => {
-      result.push(
+      parts.push(
         <CitationMarker
           key={`end-cite-${idx}`}
           citation={citation}
@@ -196,7 +239,17 @@ const ChatWindow = ({ conversationId, onConversationChange }) => {
       );
     });
 
-    return <div className="whitespace-pre-wrap leading-relaxed">{result}</div>;
+    return <div className="markdown-content" style={{ lineHeight: '1.6' }}>{parts}</div>;
+  };
+  
+  const handleCopyMessage = async (content) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
   };
 
   const CitationMarker = ({ citation, onClick }) => {
@@ -235,7 +288,7 @@ const ChatWindow = ({ conversationId, onConversationChange }) => {
               className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-3xl rounded-lg px-4 py-3 shadow-sm ${
+                className={`max-w-3xl rounded-lg px-4 py-3 shadow-sm relative group ${
                   msg.role === 'user'
                     ? 'bg-blue-600 text-white'
                     : msg.isError
@@ -266,6 +319,18 @@ const ChatWindow = ({ conversationId, onConversationChange }) => {
                     </div>
                   </div>
                 )}
+                {/* Copy button */}
+                {msg.role === 'assistant' && !msg.isError && (
+                  <button
+                    onClick={() => handleCopyMessage(msg.content)}
+                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded hover:bg-gray-200 text-gray-600 hover:text-gray-800"
+                    title="复制消息内容"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -273,7 +338,7 @@ const ChatWindow = ({ conversationId, onConversationChange }) => {
           {/* Streaming Message */}
           {streamingMessage && (
             <div className="flex justify-start">
-              <div className="max-w-3xl rounded-lg px-4 py-3 bg-gray-50 text-gray-800 border border-gray-200 shadow-sm">
+              <div className="max-w-3xl rounded-lg px-4 py-3 bg-gray-50 text-gray-800 border border-gray-200 shadow-sm relative group">
                 {renderContentWithCitations(streamingMessage.content, streamingMessage.citations)}
                 <span className="inline-block w-2 h-4 bg-blue-500 ml-1 animate-pulse"></span>
                 {streamingMessage.citations && streamingMessage.citations.length > 0 && (
@@ -298,6 +363,16 @@ const ChatWindow = ({ conversationId, onConversationChange }) => {
                     </div>
                   </div>
                 )}
+                {/* Copy button for streaming message */}
+                <button
+                  onClick={() => handleCopyMessage(streamingMessage.content)}
+                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded hover:bg-gray-200 text-gray-600 hover:text-gray-800"
+                  title="复制消息内容"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                </button>
               </div>
             </div>
           )}
