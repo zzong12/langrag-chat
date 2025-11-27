@@ -1,5 +1,5 @@
-# Use multi-stage build for smaller image
-FROM python:3.13-slim as builder
+# Multi-stage build: Python builder
+FROM python:3.13-slim as python-builder
 
 WORKDIR /app
 
@@ -24,7 +24,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy Python packages from builder
-COPY --from=builder /root/.local /root/.local
+COPY --from=python-builder /root/.local /root/.local
 
 # Make sure scripts in .local are usable
 ENV PATH=/root/.local/bin:$PATH
@@ -32,7 +32,8 @@ ENV PATH=/root/.local/bin:$PATH
 # Copy application code
 COPY . .
 
-# Create necessary directories
+# Copy built frontend (should be pre-built and copied to static/ by deploy script)
+# If static directory exists, it will be copied; otherwise create empty directory
 RUN mkdir -p /app/uploads /app/logs /app/static
 
 # Expose port

@@ -63,6 +63,22 @@ if [ ! -f .env ]; then
     exit 1
 fi
 
+# Step 0: Build frontend first
+echo "Step 0: Building frontend..."
+cd frontend
+if [ ! -d node_modules ]; then
+    echo "Installing frontend dependencies..."
+    npm install
+fi
+echo "Building frontend..."
+npm run build
+cd ..
+
+# Copy frontend build to backend static (for Docker build context)
+echo "Copying frontend build to backend static..."
+rm -rf backend/static/*
+cp -r frontend/build/* backend/static/ 2>/dev/null || mkdir -p backend/static
+
 # Step 1: Build Docker image for amd64 platform
 echo "Step 1: Building Docker image for amd64 platform..."
 docker buildx build \
@@ -132,6 +148,10 @@ rm -rf langrag langrag-deploy.tar.gz
 # Create necessary directories
 mkdir -p uploads logs
 chmod 755 uploads logs
+
+# Remove old image to force pull of new one
+echo "Removing old Docker image (if exists)..."
+docker rmi ${FULL_IMAGE} 2>/dev/null || true
 
 # Pull latest image
 echo "Pulling Docker image..."
