@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   langrag:
-    image: registry.cn-hangzhou.aliyuncs.com/openz/langrag:0.0.2
+    image: registry.cn-hangzhou.aliyuncs.com/openz/langrag:0.0.1
     container_name: langrag-app
     restart: unless-stopped
     ports:
