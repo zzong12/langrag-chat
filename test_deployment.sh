@@ -4,7 +4,7 @@
 # Usage: ./test_deployment.sh
 #
 # Required environment variables (can be set in .env or exported):
-#   TEST_REMOTE_HOST - Remote server host or IP (e.g., 47.92.139.154)
+#   TEST_REMOTE_HOST - Remote server host or IP (e.g., example.com or 1.2.3.4)
 #   TEST_REMOTE_PORT - Remote service port (e.g., 30006)
 #
 # Example:
