@@ -144,30 +144,55 @@ Based on the context above, please answer the following question. If the answer 
                                 citation_index += 1
                             sentence_buffer = ""
         except Exception as e:
-            # If astream doesn't work, fall back to regular invoke and simulate streaming
-            response = self.llm.invoke(messages)
-            answer = response.content if hasattr(response, 'content') else str(response)
+            # Check if it's a connection error
+            error_msg = str(e)
+            error_type = type(e).__name__
             
-            # Simulate streaming by sending chunks
-            words = answer.split(' ')
-            for i, word in enumerate(words):
-                yield {
-                    "type": "text",
-                    "content": word + (" " if i < len(words) - 1 else "")
-                }
-                
-                # Insert citations periodically
-                if sources and (i + 1) % 10 == 0 and citation_index < len(sources):
-                    source = sources[citation_index]
-                    yield {
-                        "type": "citation",
-                        "index": citation_index,
-                        "filename": source["filename"],
-                        "document_id": source["document_id"],
-                        "content": source["content"],
-                        "preview": source["content"][:200] + "..." if len(source["content"]) > 200 else source["content"]
-                    }
-                    citation_index += 1
+            # Provide more specific error messages
+            if "connection" in error_msg.lower() or "ConnectionError" in error_type or "ConnectTimeout" in error_type:
+                raise Exception(f"无法连接到LLM服务 ({settings.LLM_API_BASE_URL})。请检查网络连接和API配置。原始错误: {error_msg}")
+            elif "401" in error_msg or "Unauthorized" in error_msg:
+                raise Exception(f"LLM API认证失败。请检查API密钥配置。")
+            elif "429" in error_msg or "rate limit" in error_msg.lower():
+                raise Exception(f"LLM API请求频率过高，请稍后重试。")
+            else:
+                # If astream doesn't work, fall back to regular invoke and simulate streaming
+                try:
+                    response = self.llm.invoke(messages)
+                    answer = response.content if hasattr(response, 'content') else str(response)
+                    
+                    # Simulate streaming by sending chunks
+                    words = answer.split(' ')
+                    for i, word in enumerate(words):
+                        yield {
+                            "type": "text",
+                            "content": word + (" " if i < len(words) - 1 else "")
+                        }
+                        
+                        # Insert citations periodically
+                        if sources and (i + 1) % 10 == 0 and citation_index < len(sources):
+                            source = sources[citation_index]
+                            yield {
+                                "type": "citation",
+                                "index": citation_index,
+                                "filename": source["filename"],
+                                "document_id": source["document_id"],
+                                "content": source["content"],
+                                "preview": source["content"][:200] + "..." if len(source["content"]) > 200 else source["content"]
+                            }
+                            citation_index += 1
+                except Exception as invoke_error:
+                    # If invoke also fails, raise with better error message
+                    invoke_error_msg = str(invoke_error)
+                    invoke_error_type = type(invoke_error).__name__
+                    if "connection" in invoke_error_msg.lower() or "ConnectionError" in invoke_error_type or "ConnectTimeout" in invoke_error_type:
+                        raise Exception(f"无法连接到LLM服务 ({settings.LLM_API_BASE_URL})。请检查网络连接和API配置。")
+                    elif "401" in invoke_error_msg or "Unauthorized" in invoke_error_msg:
+                        raise Exception(f"LLM API认证失败。请检查API密钥配置。")
+                    elif "429" in invoke_error_msg or "rate limit" in invoke_error_msg.lower():
+                        raise Exception(f"LLM API请求频率过高，请稍后重试。")
+                    else:
+                        raise Exception(f"LLM调用失败: {invoke_error_msg}")
         
         # Send all remaining sources at the end
         if return_sources and sources:

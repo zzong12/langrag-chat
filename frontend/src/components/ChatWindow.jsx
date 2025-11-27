@@ -13,6 +13,7 @@ const ChatWindow = ({ conversationId, onConversationChange }) => {
   const [streamingMessage, setStreamingMessage] = useState(null);
   const [selectedCitation, setSelectedCitation] = useState(null);
   const [citations, setCitations] = useState({});
+  const [copySuccess, setCopySuccess] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -271,6 +272,15 @@ const ChatWindow = ({ conversationId, onConversationChange }) => {
 
   return (
     <div className="flex h-full bg-white">
+      {/* Copy success notification */}
+      {copySuccess && (
+        <div className="fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 flex items-center space-x-2 animate-fade-in">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+          <span>已复制到剪贴板</span>
+        </div>
+      )}
       {/* Main Chat Area */}
       <div className={`flex-1 flex flex-col ${selectedCitation ? 'mr-96' : ''} transition-all duration-300`}>
         {/* Messages Area */}
