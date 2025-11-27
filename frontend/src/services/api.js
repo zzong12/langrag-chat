@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+// Use relative path for API calls to work across different environments
+// If REACT_APP_API_URL is set, use it; otherwise use empty string for relative paths
+const API_BASE_URL = process.env.REACT_APP_API_URL || '';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -25,7 +27,9 @@ export const chat = async (message, conversationId = null) => {
 // Streaming chat API
 export const chatStream = async function* (message, conversationId = null) {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/chat/stream`, {
+    // Use relative path to avoid hardcoded host
+    const streamUrl = API_BASE_URL ? `${API_BASE_URL}/api/chat/stream` : '/api/chat/stream';
+    const response = await fetch(streamUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
