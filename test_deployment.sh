@@ -32,11 +32,11 @@ if [ -z "$REMOTE_HOST" ] || [ -z "$REMOTE_PORT" ]; then
     echo "  TEST_REMOTE_PORT - Remote service port"
     echo ""
     echo "Example .env entries:"
-    echo "  TEST_REMOTE_HOST=47.92.139.154"
+    echo "  TEST_REMOTE_HOST=example.com"
     echo "  TEST_REMOTE_PORT=30006"
     echo ""
     echo "Or export them:"
-    echo "  export TEST_REMOTE_HOST=47.92.139.154"
+    echo "  export TEST_REMOTE_HOST=example.com"
     echo "  export TEST_REMOTE_PORT=30006"
     exit 1
 fi
